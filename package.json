@@ -1,7 +1,7 @@
 {
-  "name": "shopify-mcp",
-  "version": "1.0.7",
-  "description": "MCP Server for Shopify API, enabling interaction with store data through GraphQL API",
+  "name": "junis-shopify-dev",
+  "version": "1.0.0",
+  "description": "Junis custom MCP Server for Shopify API",
   "main": "dist/index.js",
   "bin": "dist/index.js",
   "type": "module",
@@ -23,11 +23,7 @@
     "llm",
     "claude"
   ],
-  "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com",
-    "url": "https://your-website.com"
-  },
+  "author": "junis",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
@@ -54,12 +50,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/GeLi2001/shopify-mcp"
+    "url": "https://github.com/TOOEASY-crew/shopify-junis-dev"
   },
   "bugs": {
-    "url": "https://github.com/GeLi2001/shopify-mcp/issues"
+    "url": "https://github.com/TOOEASY-crew/shopify-junis-dev/issues"
   },
-  "homepage": "https://github.com/GeLi2001/shopify-mcp#readme",
+  "homepage": "https://github.com/TOOEASY-crew/shopify-junis-dev#readme",
   "engines": {
     "node": ">=18.0.0"
   }

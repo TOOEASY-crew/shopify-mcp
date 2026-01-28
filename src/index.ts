@@ -17,6 +17,7 @@ import { getProducts } from "./tools/getProducts.js";
 import { updateCustomer } from "./tools/updateCustomer.js";
 import { updateOrder } from "./tools/updateOrder.js";
 import { createProduct } from "./tools/createProduct.js";
+import { getBlogs } from "./tools/getBlogs.js";
 
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
@@ -69,6 +70,7 @@ updateOrder.initialize(shopifyClient);
 getCustomerOrders.initialize(shopifyClient);
 updateCustomer.initialize(shopifyClient);
 createProduct.initialize(shopifyClient);
+getBlogs.initialize(shopifyClient);
 
 // Set up MCP server
 const server = new McpServer({
@@ -264,6 +266,20 @@ server.tool(
   },
   async (args) => {
     const result = await createProduct.execute(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result) }]
+    };
+  }
+);
+
+// Add the getBlogs tool
+server.tool(
+  "get-blogs",
+  {
+    limit: z.number().default(10)
+  },
+  async (args) => {
+    const result = await getBlogs.execute(args);
     return {
       content: [{ type: "text", text: JSON.stringify(result) }]
     };
