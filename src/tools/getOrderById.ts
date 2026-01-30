@@ -2,104 +2,282 @@ import type { GraphQLClient } from "graphql-request";
 import { gql } from "graphql-request";
 import { z } from "zod";
 
-// Input schema for getOrderById
 const GetOrderByIdInputSchema = z.object({
   orderId: z.string().min(1)
 });
 
 type GetOrderByIdInput = z.infer<typeof GetOrderByIdInputSchema>;
 
-// Will be initialized in index.ts
 let shopifyClient: GraphQLClient;
 
 const getOrderById = {
   name: "get-order-by-id",
-  description: "Get a specific order by ID",
+  description: "Get a specific order by ID with full details including line items, fulfillments, events, and metafields",
   schema: GetOrderByIdInputSchema,
 
-  // Add initialize method to set up the GraphQL client
   initialize(client: GraphQLClient) {
     shopifyClient = client;
   },
 
   execute: async (input: GetOrderByIdInput) => {
     try {
-      const { orderId } = input;
-
       const query = gql`
-        query GetOrderById($id: ID!) {
+        query Order($id: ID!) {
           order(id: $id) {
             id
             name
+            confirmationNumber
             createdAt
+            processedAt
+            updatedAt
+            closedAt
+            cancelledAt
+
             displayFinancialStatus
             displayFulfillmentStatus
-            totalPriceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
+            confirmed
+            closed
+            cancelReason
+
+            currencyCode
+            currentTotalPriceSet {
+              shopMoney { amount currencyCode }
+              presentmentMoney { amount currencyCode }
             }
-            subtotalPriceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
+            currentSubtotalPriceSet {
+              shopMoney { amount currencyCode }
             }
             totalShippingPriceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
+              shopMoney { amount currencyCode }
             }
-            totalTaxSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
+            currentTotalTaxSet {
+              shopMoney { amount currencyCode }
             }
-            customer {
-              id
-              firstName
-              lastName
-              email
-              phone
+            currentTotalDiscountsSet {
+              shopMoney { amount currencyCode }
             }
-            shippingAddress {
-              address1
-              address2
-              city
-              provinceCode
-              zip
-              country
-              phone
+            totalRefundedSet {
+              shopMoney { amount currencyCode }
             }
-            lineItems(first: 20) {
+
+            discountCode
+            discountCodes
+            discountApplications(first: 10) {
               edges {
                 node {
-                  id
-                  title
-                  quantity
-                  originalTotalSet {
-                    shopMoney {
-                      amount
-                      currencyCode
+                  ... on DiscountCodeApplication {
+                    code
+                    value {
+                      ... on MoneyV2 { amount currencyCode }
+                      ... on PricingPercentageValue { percentage }
                     }
                   }
-                  variant {
-                    id
+                  ... on AutomaticDiscountApplication {
                     title
-                    sku
                   }
                 }
               }
             }
-            tags
-            note
-            metafields(first: 20) {
+
+            customer {
+              id
+              displayName
+              email
+              phone
+              numberOfOrders
+              amountSpent { amount currencyCode }
+              tags
+            }
+            email
+            phone
+
+            shippingAddress {
+              name
+              firstName
+              lastName
+              address1
+              address2
+              city
+              province
+              provinceCode
+              country
+              countryCodeV2
+              zip
+              phone
+              company
+              formatted
+            }
+            billingAddress {
+              name
+              address1
+              city
+              province
+              country
+              zip
+            }
+
+            lineItems(first: 50) {
               edges {
                 node {
                   id
+                  title
+                  name
+                  quantity
+                  currentQuantity
+                  sku
+                  vendor
+                  variantTitle
+
+                  originalTotalSet {
+                    shopMoney { amount currencyCode }
+                  }
+                  discountedTotalSet {
+                    shopMoney { amount currencyCode }
+                  }
+
+                  variant {
+                    id
+                    title
+                    sku
+                    price
+                    product {
+                      id
+                      title
+                      handle
+                      featuredMedia {
+                        ... on MediaImage {
+                          image { url altText }
+                        }
+                      }
+                    }
+                  }
+
+                  image {
+                    url
+                    altText
+                  }
+
+                  customAttributes {
+                    key
+                    value
+                  }
+                }
+              }
+            }
+
+            fulfillments(first: 10) {
+              id
+              status
+              displayStatus
+              createdAt
+              deliveredAt
+              estimatedDeliveryAt
+              trackingInfo(first: 5) {
+                company
+                number
+                url
+              }
+              fulfillmentLineItems(first: 20) {
+                edges {
+                  node {
+                    lineItem { id title quantity }
+                    quantity
+                  }
+                }
+              }
+            }
+
+            fulfillmentOrders(first: 10) {
+              edges {
+                node {
+                  id
+                  status
+                  requestStatus
+                  fulfillAt
+                  assignedLocation {
+                    name
+                  }
+                  lineItems(first: 20) {
+                    edges {
+                      node {
+                        id
+                        totalQuantity
+                        remainingQuantity
+                        lineItem { title sku }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            shippingLine {
+              title
+              code
+              originalPriceSet {
+                shopMoney { amount currencyCode }
+              }
+            }
+
+            paymentGatewayNames
+            transactions(first: 10) {
+              id
+              kind
+              status
+              amountSet {
+                shopMoney { amount currencyCode }
+              }
+              gateway
+              createdAt
+            }
+
+            note
+            tags
+            customAttributes {
+              key
+              value
+            }
+
+            app {
+              name
+            }
+
+            risks {
+              level
+              message
+              display
+            }
+
+            returns(first: 5) {
+              edges {
+                node {
+                  id
+                  status
+                }
+              }
+            }
+            refunds(first: 5) {
+              id
+              createdAt
+              totalRefundedSet {
+                shopMoney { amount currencyCode }
+              }
+            }
+
+            events(first: 20, sortKey: CREATED_AT, reverse: true) {
+              edges {
+                node {
+                  ... on BasicEvent {
+                    message
+                    createdAt
+                  }
+                }
+              }
+            }
+
+            metafields(first: 20) {
+              edges {
+                node {
                   namespace
                   key
                   value
@@ -111,85 +289,80 @@ const getOrderById = {
         }
       `;
 
-      const variables = {
-        id: orderId
-      };
-
-      const data = (await shopifyClient.request(query, variables)) as {
-        order: any;
-      };
+      const data = (await shopifyClient.request(query, { id: input.orderId })) as { order: any };
 
       if (!data.order) {
-        throw new Error(`Order with ID ${orderId} not found`);
+        throw new Error(`Order with ID ${input.orderId} not found`);
       }
 
-      // Extract and format order data
-      const order = data.order;
-
-      // Format line items
-      const lineItems = order.lineItems.edges.map((lineItemEdge: any) => {
-        const lineItem = lineItemEdge.node;
-        return {
-          id: lineItem.id,
-          title: lineItem.title,
-          quantity: lineItem.quantity,
-          originalTotal: lineItem.originalTotalSet.shopMoney,
-          variant: lineItem.variant
-            ? {
-                id: lineItem.variant.id,
-                title: lineItem.variant.title,
-                sku: lineItem.variant.sku
-              }
-            : null
-        };
-      });
-
-      // Format metafields
-      const metafields = order.metafields.edges.map((metafieldEdge: any) => {
-        const metafield = metafieldEdge.node;
-        return {
-          id: metafield.id,
-          namespace: metafield.namespace,
-          key: metafield.key,
-          value: metafield.value,
-          type: metafield.type
-        };
-      });
-
-      const formattedOrder = {
-        id: order.id,
-        name: order.name,
-        createdAt: order.createdAt,
-        financialStatus: order.displayFinancialStatus,
-        fulfillmentStatus: order.displayFulfillmentStatus,
-        totalPrice: order.totalPriceSet.shopMoney,
-        subtotalPrice: order.subtotalPriceSet.shopMoney,
-        totalShippingPrice: order.totalShippingPriceSet.shopMoney,
-        totalTax: order.totalTaxSet.shopMoney,
-        customer: order.customer
-          ? {
-              id: order.customer.id,
-              firstName: order.customer.firstName,
-              lastName: order.customer.lastName,
-              email: order.customer.email,
-              phone: order.customer.phone
-            }
-          : null,
-        shippingAddress: order.shippingAddress,
-        lineItems,
-        tags: order.tags,
-        note: order.note,
-        metafields
+      const o = data.order;
+      return {
+        order: {
+          id: o.id,
+          name: o.name,
+          confirmationNumber: o.confirmationNumber,
+          createdAt: o.createdAt,
+          processedAt: o.processedAt,
+          updatedAt: o.updatedAt,
+          closedAt: o.closedAt,
+          cancelledAt: o.cancelledAt,
+          financialStatus: o.displayFinancialStatus,
+          fulfillmentStatus: o.displayFulfillmentStatus,
+          confirmed: o.confirmed,
+          closed: o.closed,
+          cancelReason: o.cancelReason,
+          currencyCode: o.currencyCode,
+          totalPrice: o.currentTotalPriceSet?.shopMoney,
+          subtotalPrice: o.currentSubtotalPriceSet?.shopMoney,
+          totalShipping: o.totalShippingPriceSet?.shopMoney,
+          totalTax: o.currentTotalTaxSet?.shopMoney,
+          totalDiscounts: o.currentTotalDiscountsSet?.shopMoney,
+          totalRefunded: o.totalRefundedSet?.shopMoney,
+          discountCode: o.discountCode,
+          discountCodes: o.discountCodes,
+          discountApplications: o.discountApplications?.edges?.map((e: any) => e.node) || [],
+          customer: o.customer,
+          email: o.email,
+          phone: o.phone,
+          shippingAddress: o.shippingAddress,
+          billingAddress: o.billingAddress,
+          lineItems: o.lineItems?.edges?.map((e: any) => {
+            const li = e.node;
+            return {
+              id: li.id,
+              title: li.title,
+              name: li.name,
+              quantity: li.quantity,
+              currentQuantity: li.currentQuantity,
+              sku: li.sku,
+              vendor: li.vendor,
+              variantTitle: li.variantTitle,
+              originalTotal: li.originalTotalSet?.shopMoney,
+              discountedTotal: li.discountedTotalSet?.shopMoney,
+              variant: li.variant,
+              image: li.image,
+              customAttributes: li.customAttributes
+            };
+          }) || [],
+          fulfillments: o.fulfillments || [],
+          fulfillmentOrders: o.fulfillmentOrders?.edges?.map((e: any) => e.node) || [],
+          shippingLine: o.shippingLine,
+          paymentGatewayNames: o.paymentGatewayNames,
+          transactions: o.transactions || [],
+          note: o.note,
+          tags: o.tags,
+          customAttributes: o.customAttributes,
+          app: o.app,
+          risks: o.risks,
+          returns: o.returns?.edges?.map((e: any) => e.node) || [],
+          refunds: o.refunds || [],
+          events: o.events?.edges?.map((e: any) => e.node) || [],
+          metafields: o.metafields?.edges?.map((e: any) => e.node) || []
+        }
       };
-
-      return { order: formattedOrder };
     } catch (error) {
       console.error("Error fetching order by ID:", error);
-      throw new Error(
-        `Failed to fetch order: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      throw new Error(`Failed to fetch order: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 };

@@ -24,3 +24,7 @@ Thumbs.db
 
 # Claude Code (contains local paths)
 CLAUDE.md
+
+# Markdown docs (local only)
+*.md
+!README.md
