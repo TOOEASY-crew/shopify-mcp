@@ -31,10 +31,7 @@ To use this MCP server, you'll need to create a custom app in your Shopify store
 3. Click **Create an app**
 4. Set a name for your app (e.g., "Shopify MCP Server")
 5. Click **Configure Admin API scopes**
-6. Select the following scopes:
-   - `read_products`, `write_products`
-   - `read_customers`, `write_customers`
-   - `read_orders`, `write_orders`
+6. Select the scopes required for the tools you want to use
 7. Click **Save**
 8. Click **Install app**
 9. Click **Install** to give the app access to your store data
