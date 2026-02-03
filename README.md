@@ -1,21 +1,17 @@
 # Shopify MCP Server
 
-(please leave a star if you like!)
+MCP Server for Shopify API, enabling interaction with store data through GraphQL API. This server provides read-only tools for querying products, customers, orders, and more.
 
-MCP Server for Shopify API, enabling interaction with store data through GraphQL API. This server provides tools for managing products, customers, orders, and more.
+**📦 Package Name: `@junis/shopify-mcp`**
+**🚀 Command: `@junis/shopify-mcp`**
 
-**📦 Package Name: `shopify-mcp`**  
-**🚀 Command: `shopify-mcp` (NOT `shopify-mcp-server`)**
-
-<a href="https://glama.ai/mcp/servers/@GeLi2001/shopify-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@GeLi2001/shopify-mcp/badge" alt="Shopify MCP server" />
-</a>
+Fork of [GeLi2001/shopify-mcp](https://github.com/GeLi2001/shopify-mcp)
 
 ## Features
 
-- **Product Management**: Search and retrieve product information
-- **Customer Management**: Load customer data and manage customer tags
-- **Order Management**: Advanced order querying and filtering
+- **Product Queries**: Search and retrieve product information
+- **Customer Queries**: Load customer data and order history
+- **Order Queries**: Advanced order querying and filtering
 - **GraphQL Integration**: Direct integration with Shopify's GraphQL Admin API
 - **Comprehensive Error Handling**: Clear error messages for API and authentication issues
 
@@ -55,7 +51,7 @@ Add this to your `claude_desktop_config.json`:
     "shopify": {
       "command": "npx",
       "args": [
-        "shopify-mcp",
+        "@junis/shopify-mcp",
         "--accessToken",
         "<YOUR_ACCESS_TOKEN>",
         "--domain",
@@ -84,7 +80,7 @@ If you prefer to use environment variables instead of command-line arguments:
 
 2. Run the server with npx:
    ```
-   npx shopify-mcp
+   npx @junis/shopify-mcp
    ```
 
 ### Direct Installation (Optional)
@@ -92,7 +88,7 @@ If you prefer to use environment variables instead of command-line arguments:
 If you want to install the package globally:
 
 ```
-npm install -g shopify-mcp
+npm install -g @junis/shopify-mcp
 ```
 
 Then run it:
@@ -100,8 +96,6 @@ Then run it:
 ```
 shopify-mcp --accessToken=<YOUR_ACCESS_TOKEN> --domain=<YOUR_SHOP>.myshopify.com
 ```
-
-**⚠️ Important:** If you see errors about "SHOPIFY_ACCESS_TOKEN environment variable is required" when using command-line arguments, you might have a different package installed. Make sure you're using `shopify-mcp`, not `shopify-mcp-server`.
 
 ## Available Tools
 
@@ -119,15 +113,6 @@ shopify-mcp --accessToken=<YOUR_ACCESS_TOKEN> --domain=<YOUR_SHOP>.myshopify.com
    - Inputs:
      - `productId` (string): ID of the product to retrieve
 
-3. `createProduct`
-    - Create new product in store 
-    - Inputs:
-        - `title` (string): Title of the product
-        - `descriptionHtml` (string): Description of the product
-        - `vendor` (string): Vendor of the product
-        - `productType` (string): Type of the product
-        - `tags` (string): Tags of the product
-        - `status` (string): Status of the product "ACTIVE", "DRAFT", "ARCHIVED". Default "DRAFT"
 
 ### Customer Management
 1. `get-customers`
@@ -137,21 +122,7 @@ shopify-mcp --accessToken=<YOUR_ACCESS_TOKEN> --domain=<YOUR_SHOP>.myshopify.com
      - `searchQuery` (optional string): Filter customers by name or email
      - `limit` (optional number, default: 10): Maximum number of customers to return
 
-2. `update-customer`
-
-   - Update a customer's information
-   - Inputs:
-     - `id` (string, required): Shopify customer ID (numeric ID only, like "6276879810626")
-     - `firstName` (string, optional): Customer's first name
-     - `lastName` (string, optional): Customer's last name
-     - `email` (string, optional): Customer's email address
-     - `phone` (string, optional): Customer's phone number
-     - `tags` (array of strings, optional): Tags to apply to the customer
-     - `note` (string, optional): Note about the customer
-     - `taxExempt` (boolean, optional): Whether the customer is exempt from taxes
-     - `metafields` (array of objects, optional): Customer metafields for storing additional data
-
-3. `get-customer-orders`
+2. `get-customer-orders`
    - Get orders for a specific customer
    - Inputs:
      - `customerId` (string, required): Shopify customer ID (numeric ID only, like "6276879810626")
@@ -172,17 +143,6 @@ shopify-mcp --accessToken=<YOUR_ACCESS_TOKEN> --domain=<YOUR_SHOP>.myshopify.com
    - Inputs:
      - `orderId` (string, required): Full Shopify order ID (e.g., "gid://shopify/Order/6090960994370")
 
-3. `update-order`
-
-   - Update an existing order with new information
-   - Inputs:
-     - `id` (string, required): Shopify order ID
-     - `tags` (array of strings, optional): New tags for the order
-     - `email` (string, optional): Update customer email
-     - `note` (string, optional): Order notes
-     - `customAttributes` (array of objects, optional): Custom attributes for the order
-     - `metafields` (array of objects, optional): Order metafields
-     - `shippingAddress` (object, optional): Shipping address information
 
 ## Debugging
 

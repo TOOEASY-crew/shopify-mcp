@@ -1,7 +1,7 @@
 {
-  "name": "junis-shopify-dev",
+  "name": "@junis/shopify-mcp",
   "version": "1.0.0",
-  "description": "Junis custom MCP Server for Shopify API",
+  "description": "MCP Server for Shopify API - Read-only GraphQL operations",
   "main": "dist/index.js",
   "bin": "dist/index.js",
   "type": "module",
@@ -50,12 +50,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/TOOEASY-crew/shopify-junis-dev"
+    "url": "https://github.com/TOOEASY-crew/shopify-mcp"
   },
   "bugs": {
-    "url": "https://github.com/TOOEASY-crew/shopify-junis-dev/issues"
+    "url": "https://github.com/TOOEASY-crew/shopify-mcp/issues"
   },
-  "homepage": "https://github.com/TOOEASY-crew/shopify-junis-dev#readme",
+  "homepage": "https://github.com/TOOEASY-crew/shopify-mcp#readme",
   "engines": {
     "node": ">=18.0.0"
   }
