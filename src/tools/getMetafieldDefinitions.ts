@@ -36,7 +36,6 @@ const getMetafieldDefinitions = {
                   storefront
                 }
                 pinnedPosition
-                visibleToStorefrontApi
                 useAsCollectionCondition
                 ownerType
                 metafieldsCount

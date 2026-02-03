@@ -122,7 +122,7 @@ const getProducts = {
                 hasOnlyDefaultVariant
                 hasOutOfStockVariants
                 isGiftCard
-                totalVariants { count }
+                variantsCount { count }
                 tracksInventory
 
                 metafields(first: 50) {
@@ -185,7 +185,7 @@ const getProducts = {
             minPrice: node.compareAtPriceRange?.minVariantCompareAtPrice,
             maxPrice: node.compareAtPriceRange?.maxVariantCompareAtPrice
           },
-          category: node.category?.productTaxonomyNode,
+          category: node.category,
           featuredImage: node.featuredMedia?.image,
           media: node.media?.edges?.map((e: any) => e.node) || [],
           options: node.options || [],
@@ -198,7 +198,7 @@ const getProducts = {
           hasOnlyDefaultVariant: node.hasOnlyDefaultVariant,
           hasOutOfStockVariants: node.hasOutOfStockVariants,
           isGiftCard: node.isGiftCard,
-          totalVariants: node.totalVariants?.count,
+          totalVariants: node.variantsCount?.count,
           tracksInventory: node.tracksInventory,
           metafields: node.metafields?.edges?.map((e: any) => e.node) || []
         };

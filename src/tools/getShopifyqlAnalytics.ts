@@ -3,14 +3,14 @@ import { gql } from "graphql-request";
 import { z } from "zod";
 
 const schema = z.object({
-  query: z.string().min(1).describe("ShopifyQL query string (e.g. FROM sales SHOW SUM(gross_sales) SINCE -30d)")
+  query: z.string().min(1).describe("ShopifyQL query string (e.g. FROM sales SHOW total_sales SINCE -30d)")
 });
 
 let shopifyClient: GraphQLClient;
 
 const getShopifyqlAnalytics = {
   name: "get-shopifyql-analytics",
-  description: "Execute a ShopifyQL query to analyze store data (sales, orders, customers, products). Returns tabular data with columns and rows. Supports FROM sales/orders/customers/products with SHOW, SINCE, UNTIL, BY, GROUP BY, ORDER BY, LIMIT clauses.",
+  description: "Execute a ShopifyQL query to analyze store data. Datasets: sales, orders, products, customers, sessions. Use predefined metrics like total_sales, orders (not functions like sum/count). Keywords: FROM, SHOW, WHERE, SINCE, UNTIL, GROUP BY, ORDER BY, LIMIT. Example: FROM sales SHOW total_sales GROUP BY day SINCE -7d",
   schema,
 
   initialize(client: GraphQLClient) { shopifyClient = client; },

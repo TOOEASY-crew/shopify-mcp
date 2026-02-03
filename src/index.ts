@@ -14,10 +14,10 @@ import { getProductVariants } from "./tools/getProductVariants.js";
 import { getCustomers } from "./tools/getCustomers.js";
 import { getCustomerById } from "./tools/getCustomerById.js";
 import { getCustomerOrders } from "./tools/getCustomerOrders.js";
-import { updateCustomer } from "./tools/updateCustomer.js";
+
 import { getOrders } from "./tools/getOrders.js";
 import { getOrderById } from "./tools/getOrderById.js";
-import { updateOrder } from "./tools/updateOrder.js";
+
 import { getDraftOrders } from "./tools/getDraftOrders.js";
 import { getCollections } from "./tools/getCollections.js";
 import { getCollectionById } from "./tools/getCollectionById.js";
@@ -25,7 +25,7 @@ import { getInventoryItems } from "./tools/getInventoryItems.js";
 import { getInventoryItemById } from "./tools/getInventoryItemById.js";
 import { getLocations } from "./tools/getLocations.js";
 import { getShop } from "./tools/getShop.js";
-import { createProduct } from "./tools/createProduct.js";
+
 import { getBlogs } from "./tools/getBlogs.js";
 import { getArticles } from "./tools/getArticles.js";
 import { getPages } from "./tools/getPages.js";
@@ -90,7 +90,7 @@ if (!MYSHOPIFY_DOMAIN) {
 
 // Create Shopify GraphQL client
 const shopifyClient = new GraphQLClient(
-  `https://${MYSHOPIFY_DOMAIN}/admin/api/2025-01/graphql.json`,
+  `https://${MYSHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`,
   {
     headers: {
       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
@@ -102,11 +102,11 @@ const shopifyClient = new GraphQLClient(
 // Initialize all tools
 const allTools = [
   getProducts, getProductById, getProductVariants,
-  getCustomers, getCustomerById, getCustomerOrders, updateCustomer,
-  getOrders, getOrderById, updateOrder, getDraftOrders,
+  getCustomers, getCustomerById, getCustomerOrders,
+  getOrders, getOrderById, getDraftOrders,
   getCollections, getCollectionById,
   getInventoryItems, getInventoryItemById, getLocations, getShop,
-  createProduct, getBlogs, getArticles, getPages, getComments,
+  getBlogs, getArticles, getPages, getComments,
   manageBlog, manageArticle, managePage, manageComment,
   getMetaobjects, getMetafieldDefinitions, getPriceLists,
   getCounts, getProductAttributes, getTaxonomy, getFulfillmentOrders,
@@ -207,31 +207,6 @@ server.tool(
   }
 );
 
-server.tool(
-  "update-customer",
-  {
-    id: z.string().regex(/^\d+$/, "Customer ID must be numeric").describe("Shopify customer ID, numeric excluding gid prefix"),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    note: z.string().optional(),
-    taxExempt: z.boolean().optional(),
-    metafields: z.array(z.object({
-      id: z.string().optional(),
-      namespace: z.string().optional(),
-      key: z.string().optional(),
-      value: z.string(),
-      type: z.string().optional()
-    })).optional()
-  },
-  async (args) => {
-    const result = await updateCustomer.execute(args);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
-  }
-);
-
 // === ORDER TOOLS ===
 
 server.tool(
@@ -254,40 +229,6 @@ server.tool(
   { orderId: z.string().min(1) },
   async (args) => {
     const result = await getOrderById.execute(args);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
-  }
-);
-
-server.tool(
-  "update-order",
-  {
-    id: z.string().min(1),
-    tags: z.array(z.string()).optional(),
-    email: z.string().email().optional(),
-    note: z.string().optional(),
-    customAttributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
-    metafields: z.array(z.object({
-      id: z.string().optional(),
-      namespace: z.string().optional(),
-      key: z.string().optional(),
-      value: z.string(),
-      type: z.string().optional()
-    })).optional(),
-    shippingAddress: z.object({
-      address1: z.string().optional(),
-      address2: z.string().optional(),
-      city: z.string().optional(),
-      company: z.string().optional(),
-      country: z.string().optional(),
-      firstName: z.string().optional(),
-      lastName: z.string().optional(),
-      phone: z.string().optional(),
-      province: z.string().optional(),
-      zip: z.string().optional()
-    }).optional()
-  },
-  async (args) => {
-    const result = await updateOrder.execute(args);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );
@@ -382,24 +323,6 @@ server.tool(
   }
 );
 
-// === PRODUCT MUTATION ===
-
-server.tool(
-  "create-product",
-  {
-    title: z.string().min(1),
-    descriptionHtml: z.string().optional(),
-    vendor: z.string().optional(),
-    productType: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"]).default("DRAFT"),
-  },
-  async (args) => {
-    const result = await createProduct.execute(args);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
-  }
-);
-
 // === CONTENT TOOLS ===
 
 server.tool(
@@ -460,6 +383,9 @@ server.tool(
   }
 );
 
+// === MUTATION 도구 (비활성화) ===
+// 명세서 원칙: 읽기 전용 도구만 노출, mutation 도구는 추후 필요시 활성화
+/*
 server.tool(
   "manage-blog",
   {
@@ -526,6 +452,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );
+*/
 
 // === METAFIELD / METAOBJECT TOOLS ===
 

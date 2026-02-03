@@ -47,12 +47,10 @@ const getProductById = {
             }
 
             category {
-              productTaxonomyNode {
-                id
-                name
-                fullName
-                isLeaf
-              }
+              id
+              name
+              fullName
+              isLeaf
             }
 
             featuredMedia {
@@ -116,7 +114,7 @@ const getProductById = {
             hasOnlyDefaultVariant
             hasOutOfStockVariants
             isGiftCard
-            totalVariants { count }
+            totalVariants
             tracksInventory
 
             variants(first: 100) {
@@ -235,7 +233,7 @@ const getProductById = {
             minPrice: p.compareAtPriceRange?.minVariantCompareAtPrice,
             maxPrice: p.compareAtPriceRange?.maxVariantCompareAtPrice
           },
-          category: p.category?.productTaxonomyNode,
+          category: p.category,
           featuredImage: p.featuredMedia?.image,
           media: p.media?.edges?.map((e: any) => e.node) || [],
           options: p.options || [],
@@ -250,7 +248,7 @@ const getProductById = {
           hasOnlyDefaultVariant: p.hasOnlyDefaultVariant,
           hasOutOfStockVariants: p.hasOutOfStockVariants,
           isGiftCard: p.isGiftCard,
-          totalVariants: p.totalVariants?.count,
+          totalVariants: p.totalVariants,
           tracksInventory: p.tracksInventory,
           variants: p.variants?.edges?.map((e: any) => {
             const v = e.node;
