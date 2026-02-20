@@ -1,6 +1,6 @@
 {
   "name": "@junis/shopify-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP Server for Shopify API - Read-only GraphQL operations",
   "main": "dist/index.js",
   "bin": "dist/index.js",
