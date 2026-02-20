@@ -67,11 +67,11 @@ dotenv.config();
 // Define environment variables - from command line or .env file
 const SHOPIFY_ACCESS_TOKEN =
   argv.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
-const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
+const SHOPIFY_DOMAIN = argv.domain || process.env.SHOPIFY_DOMAIN;
 
 // Store in process.env for backwards compatibility
 process.env.SHOPIFY_ACCESS_TOKEN = SHOPIFY_ACCESS_TOKEN;
-process.env.MYSHOPIFY_DOMAIN = MYSHOPIFY_DOMAIN;
+process.env.SHOPIFY_DOMAIN = SHOPIFY_DOMAIN;
 
 // Validate required environment variables
 if (!SHOPIFY_ACCESS_TOKEN) {
@@ -81,8 +81,8 @@ if (!SHOPIFY_ACCESS_TOKEN) {
   process.exit(1);
 }
 
-if (!MYSHOPIFY_DOMAIN) {
-  console.error("Error: MYSHOPIFY_DOMAIN is required.");
+if (!SHOPIFY_DOMAIN) {
+  console.error("Error: SHOPIFY_DOMAIN is required.");
   console.error("Please provide it via command line argument or .env file.");
   console.error("  Command line: --domain=your-store.myshopify.com");
   process.exit(1);
@@ -90,7 +90,7 @@ if (!MYSHOPIFY_DOMAIN) {
 
 // Create Shopify GraphQL client
 const shopifyClient = new GraphQLClient(
-  `https://${MYSHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`,
+  `https://${SHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`,
   {
     headers: {
       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
