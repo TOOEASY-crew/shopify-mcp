@@ -7,7 +7,8 @@ const GetProductsInputSchema = z.object({
   after: z.string().optional(),
   query: z.string().optional(),
   sortKey: z.enum(["ID", "TITLE", "VENDOR", "PRODUCT_TYPE", "CREATED_AT", "UPDATED_AT", "PUBLISHED_AT", "INVENTORY_TOTAL", "RELEVANCE"]).default("ID"),
-  reverse: z.boolean().default(false)
+  reverse: z.boolean().default(false),
+  country: z.string().optional()
 });
 
 type GetProductsInput = z.infer<typeof GetProductsInputSchema>;
@@ -16,7 +17,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: "Get all products with filtering, sorting, and pagination. Use query parameter for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'variants.price:>=50000', 'vendor:Nike', 'product_type:Shoes', 'inventory_total:>0').",
+  description: "Get all products with filtering, sorting, and pagination. Use query parameter for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'variants.price:>=50000', 'vendor:Nike', 'product_type:Shoes', 'inventory_total:>0'). Use country parameter (ISO 3166-1 alpha-2 code, e.g. 'KR', 'US', 'JP') to get contextual pricing for that market's currency. Metafields include jsonValue for structured data parsing (ingredients, usage instructions, volume, etc.).",
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -25,6 +26,8 @@ const getProducts = {
 
   execute: async (input: GetProductsInput) => {
     try {
+      const hasCountry = !!input.country;
+
       const query = gql`
         query Products(
           $first: Int!
@@ -32,6 +35,7 @@ const getProducts = {
           $query: String
           $sortKey: ProductSortKeys
           $reverse: Boolean
+          ${hasCountry ? '$pricingContext: ContextualPricingContext!' : ''}
         ) {
           products(
             first: $first
@@ -64,6 +68,23 @@ const getProducts = {
                   minVariantCompareAtPrice { amount currencyCode }
                   maxVariantCompareAtPrice { amount currencyCode }
                 }
+
+                ${hasCountry ? `
+                contextualPricing(context: $pricingContext) {
+                  priceRange {
+                    minVariantPrice { amount currencyCode }
+                    maxVariantPrice { amount currencyCode }
+                  }
+                  maxVariantPricing {
+                    price { amount currencyCode }
+                    compareAtPrice { amount currencyCode }
+                  }
+                  minVariantPricing {
+                    price { amount currencyCode }
+                    compareAtPrice { amount currencyCode }
+                  }
+                }
+                ` : ''}
 
                 category {
                   id
@@ -132,10 +153,14 @@ const getProducts = {
                       namespace
                       key
                       value
+                      jsonValue
                       type
-                      description
                       createdAt
                       updatedAt
+                      definition {
+                        name
+                        description
+                      }
                     }
                   }
                 }
@@ -151,13 +176,17 @@ const getProducts = {
         }
       `;
 
-      const variables = {
+      const variables: Record<string, any> = {
         first: input.first,
         after: input.after || undefined,
         query: input.query || undefined,
         sortKey: input.sortKey,
         reverse: input.reverse
       };
+
+      if (hasCountry) {
+        variables.pricingContext = { country: input.country };
+      }
 
       const data = (await shopifyClient.request(query, variables)) as { products: any };
 
@@ -185,6 +214,13 @@ const getProducts = {
             minPrice: node.compareAtPriceRange?.minVariantCompareAtPrice,
             maxPrice: node.compareAtPriceRange?.maxVariantCompareAtPrice
           },
+          ...(node.contextualPricing ? {
+            contextualPricing: {
+              priceRange: node.contextualPricing.priceRange,
+              maxVariantPricing: node.contextualPricing.maxVariantPricing,
+              minVariantPricing: node.contextualPricing.minVariantPricing
+            }
+          } : {}),
           category: node.category,
           featuredImage: node.featuredMedia?.image,
           media: node.media?.edges?.map((e: any) => e.node) || [],
@@ -200,7 +236,10 @@ const getProducts = {
           isGiftCard: node.isGiftCard,
           totalVariants: node.variantsCount?.count,
           tracksInventory: node.tracksInventory,
-          metafields: node.metafields?.edges?.map((e: any) => e.node) || []
+          metafields: node.metafields?.edges?.map((e: any) => ({
+            ...e.node,
+            definitionName: e.node.definition?.name
+          })) || []
         };
       });
 

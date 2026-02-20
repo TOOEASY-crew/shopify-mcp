@@ -3,7 +3,8 @@ import { gql } from "graphql-request";
 import { z } from "zod";
 
 const GetProductByIdInputSchema = z.object({
-  productId: z.string().min(1)
+  productId: z.string().min(1),
+  country: z.string().optional()
 });
 
 type GetProductByIdInput = z.infer<typeof GetProductByIdInputSchema>;
@@ -12,7 +13,7 @@ let shopifyClient: GraphQLClient;
 
 const getProductById = {
   name: "get-product-by-id",
-  description: "Get a specific product by ID with full details including variants, media, metafields, inventory, and collections",
+  description: "Get a specific product by ID with full details including variants, media, metafields (with reference expansion for linked resources like ingredients, usage instructions stored in metaobjects/files), inventory, collections, and contextual pricing. Use country parameter (ISO 3166-1 alpha-2 code, e.g. 'KR', 'US', 'JP') to get pricing in that market's currency (e.g. KRW). Metafields include jsonValue, definition info, and full reference/references expansion for linked resources (images, files, metaobjects containing ingredients/volume/usage data, etc.). Variants include unitPriceMeasurement for volume/weight info (ml/g) and inventory weight.",
   schema: GetProductByIdInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -21,8 +22,13 @@ const getProductById = {
 
   execute: async (input: GetProductByIdInput) => {
     try {
+      const hasCountry = !!input.country;
+
       const query = gql`
-        query Product($id: ID!) {
+        query Product(
+          $id: ID!
+          ${hasCountry ? '$pricingContext: ContextualPricingContext!' : ''}
+        ) {
           product(id: $id) {
             id
             title
@@ -45,6 +51,23 @@ const getProductById = {
               minVariantCompareAtPrice { amount currencyCode }
               maxVariantCompareAtPrice { amount currencyCode }
             }
+
+            ${hasCountry ? `
+            contextualPricing(context: $pricingContext) {
+              priceRange {
+                minVariantPrice { amount currencyCode }
+                maxVariantPrice { amount currencyCode }
+              }
+              maxVariantPricing {
+                price { amount currencyCode }
+                compareAtPrice { amount currencyCode }
+              }
+              minVariantPricing {
+                price { amount currencyCode }
+                compareAtPrice { amount currencyCode }
+              }
+            }
+            ` : ''}
 
             category {
               id
@@ -114,7 +137,7 @@ const getProductById = {
             hasOnlyDefaultVariant
             hasOutOfStockVariants
             isGiftCard
-            totalVariants
+            variantsCount { count }
             tracksInventory
 
             variants(first: 100) {
@@ -138,6 +161,21 @@ const getProductById = {
                     value
                   }
 
+                  unitPriceMeasurement {
+                    measuredType
+                    quantityUnit
+                    quantityValue
+                    referenceUnit
+                    referenceValue
+                  }
+
+                  ${hasCountry ? `
+                  contextualPricing(context: $pricingContext) {
+                    price { amount currencyCode }
+                    compareAtPrice { amount currencyCode }
+                  }
+                  ` : ''}
+
                   media(first: 5) {
                     edges {
                       node {
@@ -155,6 +193,9 @@ const getProductById = {
                     unitCost { amount currencyCode }
                     countryCodeOfOrigin
                     harmonizedSystemCode
+                    measurement {
+                      weight { value unit }
+                    }
                     inventoryLevels(first: 10) {
                       edges {
                         node {
@@ -175,7 +216,11 @@ const getProductById = {
                         namespace
                         key
                         value
+                        jsonValue
                         type
+                        definition {
+                          name
+                        }
                       }
                     }
                   }
@@ -193,10 +238,107 @@ const getProductById = {
                   namespace
                   key
                   value
+                  jsonValue
                   type
-                  description
                   createdAt
                   updatedAt
+                  definition {
+                    id
+                    name
+                    description
+                    pinnedPosition
+                  }
+                  reference {
+                    ... on MediaImage {
+                      id
+                      image { url altText width height }
+                    }
+                    ... on GenericFile {
+                      id
+                      url
+                      mimeType
+                      originalFileSize
+                    }
+                    ... on Video {
+                      id
+                      sources { url mimeType width height }
+                    }
+                    ... on Metaobject {
+                      id
+                      type
+                      handle
+                      displayName
+                      fields { key value type }
+                    }
+                    ... on Product {
+                      id
+                      title
+                      handle
+                    }
+                    ... on ProductVariant {
+                      id
+                      title
+                      sku
+                      price
+                    }
+                    ... on Collection {
+                      id
+                      title
+                      handle
+                    }
+                    ... on Page {
+                      id
+                      title
+                      handle
+                      body
+                    }
+                  }
+                  references(first: 10) {
+                    edges {
+                      node {
+                        ... on MediaImage {
+                          id
+                          image { url altText width height }
+                        }
+                        ... on GenericFile {
+                          id
+                          url
+                          mimeType
+                        }
+                        ... on Video {
+                          id
+                          sources { url mimeType }
+                        }
+                        ... on Metaobject {
+                          id
+                          type
+                          handle
+                          displayName
+                          fields { key value type }
+                        }
+                        ... on Product {
+                          id
+                          title
+                          handle
+                        }
+                        ... on ProductVariant {
+                          id
+                          title
+                          sku
+                        }
+                        ... on Collection {
+                          id
+                          title
+                          handle
+                        }
+                        ... on Page {
+                          id
+                          title
+                          handle
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -204,7 +346,13 @@ const getProductById = {
         }
       `;
 
-      const data = (await shopifyClient.request(query, { id: input.productId })) as { product: any };
+      const variables: Record<string, any> = { id: input.productId };
+
+      if (hasCountry) {
+        variables.pricingContext = { country: input.country };
+      }
+
+      const data = (await shopifyClient.request(query, variables)) as { product: any };
 
       if (!data.product) {
         throw new Error(`Product with ID ${input.productId} not found`);
@@ -233,6 +381,13 @@ const getProductById = {
             minPrice: p.compareAtPriceRange?.minVariantCompareAtPrice,
             maxPrice: p.compareAtPriceRange?.maxVariantCompareAtPrice
           },
+          ...(p.contextualPricing ? {
+            contextualPricing: {
+              priceRange: p.contextualPricing.priceRange,
+              maxVariantPricing: p.contextualPricing.maxVariantPricing,
+              minVariantPricing: p.contextualPricing.minVariantPricing
+            }
+          } : {}),
           category: p.category,
           featuredImage: p.featuredMedia?.image,
           media: p.media?.edges?.map((e: any) => e.node) || [],
@@ -248,7 +403,7 @@ const getProductById = {
           hasOnlyDefaultVariant: p.hasOnlyDefaultVariant,
           hasOutOfStockVariants: p.hasOutOfStockVariants,
           isGiftCard: p.isGiftCard,
-          totalVariants: p.totalVariants,
+          totalVariants: p.variantsCount?.count,
           tracksInventory: p.tracksInventory,
           variants: p.variants?.edges?.map((e: any) => {
             const v = e.node;
@@ -266,6 +421,10 @@ const getProductById = {
               inventoryPolicy: v.inventoryPolicy,
               taxable: v.taxable,
               selectedOptions: v.selectedOptions,
+              unitPriceMeasurement: v.unitPriceMeasurement || null,
+              ...(v.contextualPricing ? {
+                contextualPricing: v.contextualPricing
+              } : {}),
               media: v.media?.edges?.map((me: any) => me.node) || [],
               inventoryItem: v.inventoryItem ? {
                 id: v.inventoryItem.id,
@@ -274,18 +433,39 @@ const getProductById = {
                 unitCost: v.inventoryItem.unitCost,
                 countryCodeOfOrigin: v.inventoryItem.countryCodeOfOrigin,
                 harmonizedSystemCode: v.inventoryItem.harmonizedSystemCode,
+                weight: v.inventoryItem.measurement?.weight || null,
                 inventoryLevels: v.inventoryItem.inventoryLevels?.edges?.map((le: any) => ({
                   id: le.node.id,
                   location: le.node.location,
                   quantities: le.node.quantities
                 })) || []
               } : null,
-              metafields: v.metafields?.edges?.map((mf: any) => mf.node) || [],
+              metafields: v.metafields?.edges?.map((mf: any) => ({
+                ...mf.node,
+                definitionName: mf.node.definition?.name
+              })) || [],
               createdAt: v.createdAt,
               updatedAt: v.updatedAt
             };
           }) || [],
-          metafields: p.metafields?.edges?.map((e: any) => e.node) || []
+          metafields: p.metafields?.edges?.map((e: any) => ({
+            id: e.node.id,
+            namespace: e.node.namespace,
+            key: e.node.key,
+            value: e.node.value,
+            jsonValue: e.node.jsonValue,
+            type: e.node.type,
+            createdAt: e.node.createdAt,
+            updatedAt: e.node.updatedAt,
+            definition: e.node.definition ? {
+              id: e.node.definition.id,
+              name: e.node.definition.name,
+              description: e.node.definition.description,
+              pinnedPosition: e.node.definition.pinnedPosition
+            } : null,
+            reference: e.node.reference || null,
+            references: e.node.references?.edges?.map((re: any) => re.node) || []
+          })) || []
         }
       };
     } catch (error) {

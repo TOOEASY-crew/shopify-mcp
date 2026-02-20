@@ -6,7 +6,8 @@ const GetProductVariantsInputSchema = z.object({
   first: z.number().default(10),
   after: z.string().optional(),
   query: z.string().optional(),
-  sortKey: z.enum(["ID", "TITLE", "SKU", "POSITION", "INVENTORY_QUANTITY", "RELEVANCE"]).default("ID")
+  sortKey: z.enum(["ID", "TITLE", "SKU", "POSITION", "INVENTORY_QUANTITY", "RELEVANCE"]).default("ID"),
+  country: z.string().optional()
 });
 
 type GetProductVariantsInput = z.infer<typeof GetProductVariantsInputSchema>;
@@ -15,7 +16,7 @@ let shopifyClient: GraphQLClient;
 
 const getProductVariants = {
   name: "get-product-variants",
-  description: "Get product variants with filtering and pagination. Use query for filtering (e.g. 'inventory_quantity:<=10', 'sku:ABC*').",
+  description: "Get product variants with filtering and pagination. Use query for filtering (e.g. 'inventory_quantity:<=10', 'sku:ABC*'). Use country parameter (ISO 3166-1 alpha-2 code, e.g. 'KR', 'US', 'JP') to get contextual pricing for that market's currency. Includes unitPriceMeasurement for volume/weight data (ml/g) and enhanced metafields with jsonValue.",
   schema: GetProductVariantsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -24,8 +25,16 @@ const getProductVariants = {
 
   execute: async (input: GetProductVariantsInput) => {
     try {
+      const hasCountry = !!input.country;
+
       const query = gql`
-        query ProductVariants($first: Int!, $after: String, $query: String, $sortKey: ProductVariantSortKeys) {
+        query ProductVariants(
+          $first: Int!
+          $after: String
+          $query: String
+          $sortKey: ProductVariantSortKeys
+          ${hasCountry ? '$pricingContext: ContextualPricingContext!' : ''}
+        ) {
           productVariants(first: $first, after: $after, query: $query, sortKey: $sortKey) {
             edges {
               cursor
@@ -52,15 +61,42 @@ const getProductVariants = {
                   value
                 }
 
+                unitPriceMeasurement {
+                  measuredType
+                  quantityUnit
+                  quantityValue
+                  referenceUnit
+                  referenceValue
+                }
+
+                ${hasCountry ? `
+                contextualPricing(context: $pricingContext) {
+                  price { amount currencyCode }
+                  compareAtPrice { amount currencyCode }
+                }
+                ` : ''}
+
                 inventoryItem {
                   id
                   tracked
                   unitCost { amount currencyCode }
+                  measurement {
+                    weight { value unit }
+                  }
                 }
 
                 metafields(first: 10) {
                   edges {
-                    node { namespace key value type }
+                    node {
+                      namespace
+                      key
+                      value
+                      jsonValue
+                      type
+                      definition {
+                        name
+                      }
+                    }
                   }
                 }
               }
@@ -70,12 +106,16 @@ const getProductVariants = {
         }
       `;
 
-      const variables = {
+      const variables: Record<string, any> = {
         first: input.first,
         after: input.after || undefined,
         query: input.query || undefined,
         sortKey: input.sortKey
       };
+
+      if (hasCountry) {
+        variables.pricingContext = { country: input.country };
+      }
 
       const data = (await shopifyClient.request(query, variables)) as { productVariants: any };
 
@@ -94,8 +134,20 @@ const getProductVariants = {
           inventoryQuantity: v.inventoryQuantity,
           product: v.product,
           selectedOptions: v.selectedOptions,
-          inventoryItem: v.inventoryItem,
-          metafields: v.metafields?.edges?.map((e: any) => e.node) || []
+          unitPriceMeasurement: v.unitPriceMeasurement || null,
+          ...(v.contextualPricing ? {
+            contextualPricing: v.contextualPricing
+          } : {}),
+          inventoryItem: v.inventoryItem ? {
+            id: v.inventoryItem.id,
+            tracked: v.inventoryItem.tracked,
+            unitCost: v.inventoryItem.unitCost,
+            weight: v.inventoryItem.measurement?.weight || null
+          } : null,
+          metafields: v.metafields?.edges?.map((e: any) => ({
+            ...e.node,
+            definitionName: e.node.definition?.name
+          })) || []
         };
       });
 

@@ -138,7 +138,8 @@ server.tool(
     after: z.string().optional(),
     query: z.string().optional(),
     sortKey: z.enum(["ID", "TITLE", "VENDOR", "PRODUCT_TYPE", "CREATED_AT", "UPDATED_AT", "PUBLISHED_AT", "INVENTORY_TOTAL", "RELEVANCE"]).default("ID"),
-    reverse: z.boolean().default(false)
+    reverse: z.boolean().default(false),
+    country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency")
   },
   async (args) => {
     const result = await getProducts.execute(args);
@@ -148,7 +149,10 @@ server.tool(
 
 server.tool(
   "get-product-by-id",
-  { productId: z.string().min(1) },
+  {
+    productId: z.string().min(1),
+    country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency")
+  },
   async (args) => {
     const result = await getProductById.execute(args);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -161,7 +165,8 @@ server.tool(
     first: z.number().default(10),
     after: z.string().optional(),
     query: z.string().optional(),
-    sortKey: z.enum(["ID", "TITLE", "SKU", "POSITION", "INVENTORY_QUANTITY", "RELEVANCE"]).default("ID")
+    sortKey: z.enum(["ID", "TITLE", "SKU", "POSITION", "INVENTORY_QUANTITY", "RELEVANCE"]).default("ID"),
+    country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency")
   },
   async (args) => {
     const result = await getProductVariants.execute(args);
