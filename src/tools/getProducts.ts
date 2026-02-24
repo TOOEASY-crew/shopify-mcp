@@ -17,7 +17,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: "Get all products with filtering, sorting, and pagination. Use query parameter for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'variants.price:>=50000', 'vendor:Nike', 'product_type:Shoes', 'inventory_total:>0'). Use country parameter (ISO 3166-1 alpha-2 code, e.g. 'KR', 'US', 'JP') to get contextual pricing for that market's currency. Metafields include jsonValue for structured data parsing (ingredients, usage instructions, volume, etc.).",
+  description: "Get products list with filtering, sorting, and pagination. Metafields are returned as a flat object (namespace.key: value). loox.reviews is excluded — use get-product-reviews for reviews. Use query for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'vendor:Nike'). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing.",
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -51,7 +51,6 @@ const getProducts = {
                 title
                 handle
                 description
-                descriptionHtml
                 productType
                 vendor
                 status
@@ -99,20 +98,6 @@ const getProducts = {
                     image { url altText width height }
                   }
                 }
-                media(first: 10) {
-                  edges {
-                    node {
-                      ... on MediaImage {
-                        id
-                        image { url altText width height }
-                      }
-                      ... on Video {
-                        id
-                        sources { url mimeType }
-                      }
-                    }
-                  }
-                }
 
                 options(first: 10) {
                   id
@@ -121,32 +106,13 @@ const getProducts = {
                   values
                 }
 
-                seo {
-                  title
-                  description
-                }
                 onlineStoreUrl
-                onlineStorePreviewUrl
 
-                collections(first: 10) {
-                  edges {
-                    node {
-                      id
-                      title
-                      handle
-                    }
-                  }
-                }
-
-                requiresSellingPlan
-                hasVariantsThatRequiresComponents
-                hasOnlyDefaultVariant
                 hasOutOfStockVariants
                 isGiftCard
                 variantsCount { count }
-                tracksInventory
 
-                metafields(first: 50) {
+                metafields(first: 20) {
                   edges {
                     node {
                       id
@@ -198,7 +164,6 @@ const getProducts = {
           title: node.title,
           handle: node.handle,
           description: node.description,
-          descriptionHtml: node.descriptionHtml,
           productType: node.productType,
           vendor: node.vendor,
           status: node.status,
@@ -223,23 +188,19 @@ const getProducts = {
           } : {}),
           category: node.category,
           featuredImage: node.featuredMedia?.image,
-          media: node.media?.edges?.map((e: any) => e.node) || [],
           options: node.options || [],
-          seo: node.seo,
           onlineStoreUrl: node.onlineStoreUrl,
-          onlineStorePreviewUrl: node.onlineStorePreviewUrl,
-          collections: node.collections?.edges?.map((e: any) => e.node) || [],
-          requiresSellingPlan: node.requiresSellingPlan,
-          hasVariantsThatRequiresComponents: node.hasVariantsThatRequiresComponents,
-          hasOnlyDefaultVariant: node.hasOnlyDefaultVariant,
           hasOutOfStockVariants: node.hasOutOfStockVariants,
           isGiftCard: node.isGiftCard,
           totalVariants: node.variantsCount?.count,
-          tracksInventory: node.tracksInventory,
-          metafields: node.metafields?.edges?.map((e: any) => ({
-            ...e.node,
-            definitionName: e.node.definition?.name
-          })) || []
+          metafields: Object.fromEntries(
+            (node.metafields?.edges || [])
+              .filter((e: any) => !(e.node.namespace === 'loox' && e.node.key === 'reviews'))
+              .map((e: any) => {
+                const m = e.node;
+                return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
+              })
+          )
         };
       });
 

@@ -57,6 +57,7 @@ import { getStandardMetafieldTemplates } from "./tools/getStandardMetafieldTempl
 import { getMetaobjectById } from "./tools/getMetaobjectById.js";
 import { getMetaobjectByHandle } from "./tools/getMetaobjectByHandle.js";
 import { getShopifyqlAnalytics } from "./tools/getShopifyqlAnalytics.js";
+import { getProductReviews } from "./tools/getProductReviews.js";
 
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2));
@@ -116,7 +117,8 @@ const allTools = [
   getPriceListById, getMetaobjectDefinitions, getFiles,
   getMetafieldDefinitionById, getMetafieldDefinitionTypes, getStandardMetafieldTemplates,
   getMetaobjectById, getMetaobjectByHandle,
-  getShopifyqlAnalytics
+  getShopifyqlAnalytics,
+  getProductReviews
 ];
 
 allTools.forEach(tool => tool.initialize(shopifyClient));
@@ -771,6 +773,20 @@ server.tool(
   },
   async (args) => {
     const result = await getShopifyqlAnalytics.execute(args);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  }
+);
+
+server.tool(
+  "get-product-reviews",
+  {
+    productId: z.string().min(1).describe("Shopify product GID (e.g. gid://shopify/Product/123)"),
+    limit: z.number().default(50).optional().describe("Number of reviews per page (default 50)"),
+    page: z.number().default(1).optional().describe("Page number for pagination (default 1)"),
+    all: z.boolean().default(false).optional().describe("If true, return all available reviews ignoring limit/page")
+  },
+  async (args) => {
+    const result = await getProductReviews.execute(args);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );

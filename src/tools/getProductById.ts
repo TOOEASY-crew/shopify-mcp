@@ -13,7 +13,7 @@ let shopifyClient: GraphQLClient;
 
 const getProductById = {
   name: "get-product-by-id",
-  description: "Get a specific product by ID with full details including variants, media, metafields (with reference expansion for linked resources like ingredients, usage instructions stored in metaobjects/files), inventory, collections, and contextual pricing. Use country parameter (ISO 3166-1 alpha-2 code, e.g. 'KR', 'US', 'JP') to get pricing in that market's currency (e.g. KRW). Metafields include jsonValue, definition info, and full reference/references expansion for linked resources (images, files, metaobjects containing ingredients/volume/usage data, etc.). Variants include unitPriceMeasurement for volume/weight info (ml/g) and inventory weight.",
+  description: "Get a specific product by ID with full details including variants, media, metafields, inventory, collections, and contextual pricing. Metafields are returned as a flat object (namespace.key: value); loox.reviews is excluded — use get-product-reviews for reviews. Variants include inventory levels, weight, and per-variant metafields (also flat). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing.",
   schema: GetProductByIdInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -34,7 +34,6 @@ const getProductById = {
             title
             handle
             description
-            descriptionHtml
             productType
             vendor
             status
@@ -365,7 +364,6 @@ const getProductById = {
           title: p.title,
           handle: p.handle,
           description: p.description,
-          descriptionHtml: p.descriptionHtml,
           productType: p.productType,
           vendor: p.vendor,
           status: p.status,
@@ -440,32 +438,31 @@ const getProductById = {
                   quantities: le.node.quantities
                 })) || []
               } : null,
-              metafields: v.metafields?.edges?.map((mf: any) => ({
-                ...mf.node,
-                definitionName: mf.node.definition?.name
-              })) || [],
+              metafields: Object.fromEntries(
+                (v.metafields?.edges || []).map((mf: any) => {
+                  const m = mf.node;
+                  return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
+                })
+              ),
               createdAt: v.createdAt,
               updatedAt: v.updatedAt
             };
           }) || [],
-          metafields: p.metafields?.edges?.map((e: any) => ({
-            id: e.node.id,
-            namespace: e.node.namespace,
-            key: e.node.key,
-            value: e.node.value,
-            jsonValue: e.node.jsonValue,
-            type: e.node.type,
-            createdAt: e.node.createdAt,
-            updatedAt: e.node.updatedAt,
-            definition: e.node.definition ? {
-              id: e.node.definition.id,
-              name: e.node.definition.name,
-              description: e.node.definition.description,
-              pinnedPosition: e.node.definition.pinnedPosition
-            } : null,
-            reference: e.node.reference || null,
-            references: e.node.references?.edges?.map((re: any) => re.node) || []
-          })) || []
+          metafields: Object.fromEntries(
+            (p.metafields?.edges || [])
+              .filter((e: any) => !(e.node.namespace === 'loox' && e.node.key === 'reviews'))
+              .map((e: any) => {
+                const node = e.node;
+                const flatKey = `${node.namespace}.${node.key}`;
+                if (node.reference) {
+                  return [flatKey, node.reference];
+                }
+                if (node.references?.edges?.length > 0) {
+                  return [flatKey, node.references.edges.map((re: any) => re.node)];
+                }
+                return [flatKey, node.jsonValue ?? node.value];
+              })
+          )
         }
       };
     } catch (error) {
