@@ -8,7 +8,8 @@ const GetProductsInputSchema = z.object({
   query: z.string().optional(),
   sortKey: z.enum(["ID", "TITLE", "VENDOR", "PRODUCT_TYPE", "CREATED_AT", "UPDATED_AT", "PUBLISHED_AT", "INVENTORY_TOTAL", "RELEVANCE"]).default("ID"),
   reverse: z.boolean().default(false),
-  country: z.string().optional()
+  country: z.string().optional(),
+  minimum_review_count: z.number().optional()
 });
 
 type GetProductsInput = z.infer<typeof GetProductsInputSchema>;
@@ -17,7 +18,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: "Get products list with filtering, sorting, and pagination. Metafields are returned as a flat object (namespace.key: value). loox.reviews is excluded — use get-product-reviews for reviews. Use query for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'vendor:Nike'). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing.",
+  description: "Get products list with filtering, sorting, and pagination. Metafields are returned as a flat object (namespace.key: value). loox.reviews is excluded — use get-product-reviews for reviews. Use query for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'vendor:Nike'). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing. Use minimum_review_count to filter products with at least N Loox reviews (loox.num_reviews metafield).",
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -204,8 +205,15 @@ const getProducts = {
         };
       });
 
+      const filtered = input.minimum_review_count != null
+        ? products.filter((p: any) => {
+            const numReviews = Number(p.metafields?.["loox.num_reviews"] ?? 0);
+            return numReviews >= input.minimum_review_count!;
+          })
+        : products;
+
       return {
-        products,
+        products: filtered,
         pageInfo: data.products.pageInfo
       };
     } catch (error) {
