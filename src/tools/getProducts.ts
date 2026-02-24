@@ -143,10 +143,13 @@ const getProducts = {
         }
       `;
 
+      const baseFilter = "status:active";
+      const finalQuery = input.query ? `${baseFilter} AND ${input.query}` : baseFilter;
+
       const variables: Record<string, any> = {
         first: input.first,
         after: input.after || undefined,
-        query: input.query || undefined,
+        query: finalQuery,
         sortKey: input.sortKey,
         reverse: input.reverse
       };

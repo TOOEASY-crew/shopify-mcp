@@ -58,10 +58,13 @@ const getPages = {
         }
       `;
 
+      const baseFilter = "published_status:published";
+      const finalQuery = input.query ? `${baseFilter} ${input.query}` : baseFilter;
+
       const data = (await shopifyClient.request(query, {
         first: input.first,
         after: input.after || undefined,
-        query: input.query || undefined,
+        query: finalQuery,
         sortKey: input.sortKey,
         reverse: input.reverse
       })) as { pages: any };
