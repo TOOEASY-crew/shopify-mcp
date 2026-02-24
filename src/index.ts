@@ -141,7 +141,9 @@ server.tool(
     query: z.string().optional(),
     sortKey: z.enum(["ID", "TITLE", "VENDOR", "PRODUCT_TYPE", "CREATED_AT", "UPDATED_AT", "PUBLISHED_AT", "INVENTORY_TOTAL", "RELEVANCE"]).default("ID"),
     reverse: z.boolean().default(false),
-    country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency")
+    country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency"),
+    minimum_review_count: z.number().optional().describe("Filter products with at least N Loox reviews. E.g. 50 returns only products with ≥50 reviews. Products without loox.num_reviews metafield are excluded."),
+    contain_product_detail: z.boolean().default(false).describe("If false (default), heavy metafields (ingredients, details, faq, how-to-use, description_tag) are excluded for lighter responses. Set true only when you need full product content for crawling or detailed display.")
   },
   async (args) => {
     const result = await getProducts.execute(args);

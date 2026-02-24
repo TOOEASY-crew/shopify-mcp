@@ -2,6 +2,14 @@ import type { GraphQLClient } from "graphql-request";
 import { gql } from "graphql-request";
 import { z } from "zod";
 
+const DETAIL_METAFIELD_KEYS = new Set([
+  "details.details",
+  "ingredients.ingredients",
+  "faq.faq",
+  "how-to-use.how-to-use",
+  "global.description_tag",
+]);
+
 const GetProductsInputSchema = z.object({
   first: z.number().default(10),
   after: z.string().optional(),
@@ -9,7 +17,8 @@ const GetProductsInputSchema = z.object({
   sortKey: z.enum(["ID", "TITLE", "VENDOR", "PRODUCT_TYPE", "CREATED_AT", "UPDATED_AT", "PUBLISHED_AT", "INVENTORY_TOTAL", "RELEVANCE"]).default("ID"),
   reverse: z.boolean().default(false),
   country: z.string().optional(),
-  minimum_review_count: z.number().optional()
+  minimum_review_count: z.number().optional(),
+  contain_product_detail: z.boolean().default(false)
 });
 
 type GetProductsInput = z.infer<typeof GetProductsInputSchema>;
@@ -18,7 +27,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: "Get products list with filtering, sorting, and pagination. Metafields are returned as a flat object (namespace.key: value). loox.reviews is excluded — use get-product-reviews for reviews. Use query for filtering (e.g. 'title:*summer*', 'tag:sale', 'status:ACTIVE', 'vendor:Nike'). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing. Use minimum_review_count to filter products with at least N Loox reviews (loox.num_reviews metafield).",
+  description: "Get products list (ACTIVE only). Returns lightweight data by default for efficient listing/filtering. Set contain_product_detail=true to include heavy metafields (ingredients, details, faq, how-to-use, description_tag) — use this only when you need to crawl or display full product content. Use minimum_review_count to return only products with at least N Loox reviews (e.g. minimum_review_count=50 keeps only products with ≥50 reviews). Use query for Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). Use country (ISO 3166-1 alpha-2, e.g. 'KR') for market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews excluded — use get-product-reviews instead.",
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -199,7 +208,14 @@ const getProducts = {
           totalVariants: node.variantsCount?.count,
           metafields: Object.fromEntries(
             (node.metafields?.edges || [])
-              .filter((e: any) => !(e.node.namespace === 'loox' && e.node.key === 'reviews'))
+              .filter((e: any) => {
+                if (e.node.namespace === 'loox' && e.node.key === 'reviews') return false;
+                if (!input.contain_product_detail) {
+                  const flatKey = `${e.node.namespace}.${e.node.key}`;
+                  if (DETAIL_METAFIELD_KEYS.has(flatKey)) return false;
+                }
+                return true;
+              })
               .map((e: any) => {
                 const m = e.node;
                 return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
