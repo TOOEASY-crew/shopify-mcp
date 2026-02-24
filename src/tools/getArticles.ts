@@ -2,6 +2,18 @@ import type { GraphQLClient } from "graphql-request";
 import { gql } from "graphql-request";
 import { z } from "zod";
 
+function cleanBody(html: string): string {
+  return html
+    .replace(/<(?!\/?(?:img|a|video)(?:\s|>|\/|$))[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const schema = z.object({
   first: z.number().default(10),
   after: z.string().optional(),
@@ -38,31 +50,14 @@ const getArticles = {
                 updatedAt
                 author { name }
                 blog { id title handle }
-                image { url altText width height }
+                image { url altText }
                 tags
-                templateSuffix
-                comments(first: 20) {
-                  edges {
-                    node {
-                      id
-                      author { name email }
-                      body
-                      bodyHtml
-                      isPublished
-                      publishedAt
-                      status
-                      createdAt
-                    }
-                  }
-                }
-                commentsCount { count }
                 metafields(first: 20) {
                   edges {
                     node {
                       namespace
                       key
                       value
-                      type
                       reference {
                         ... on Product { id title handle }
                         ... on Collection { id title handle }
@@ -106,7 +101,7 @@ const getArticles = {
           id: a.id,
           title: a.title,
           handle: a.handle,
-          body: a.body,
+          body: cleanBody(a.body || ''),
           summary: a.summary,
           isPublished: a.isPublished,
           publishedAt: a.publishedAt,
@@ -116,13 +111,15 @@ const getArticles = {
           blog: a.blog,
           image: a.image,
           tags: a.tags,
-          templateSuffix: a.templateSuffix,
-          comments: a.comments?.edges?.map((e: any) => e.node) || [],
-          commentsCount: a.commentsCount?.count || 0,
-          metafields: a.metafields?.edges?.map((e: any) => ({
-            ...e.node,
-            references: e.node.references?.edges?.map((r: any) => r.node) || []
-          })) || []
+          metafields: Object.fromEntries(
+            (a.metafields?.edges || []).map((e: any) => {
+              const m = e.node;
+              const flatKey = `${m.namespace}.${m.key}`;
+              if (m.reference) return [flatKey, m.reference];
+              if (m.references?.edges?.length > 0) return [flatKey, m.references.edges.map((r: any) => r.node)];
+              return [flatKey, m.value];
+            })
+          )
         };
       });
 
