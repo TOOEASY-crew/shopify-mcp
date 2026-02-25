@@ -4,12 +4,30 @@ import { z } from "zod";
 
 function cleanBody(html: string): string {
   return html
+    // srcset/data-srcset 중복 이미지 URL 제거 (동일 이미지 6~7개 사이즈)
+    .replace(/\s*data-srcset="[^"]*"/g, '')
+    .replace(/\s*srcset="[^"]*"/g, '')
+    .replace(/\s*data-sizes="[^"]*"/g, '')
+    // class, style, section-image-id 등 LLM에 무의미한 속성 제거
+    .replace(/\s*class="[^"]*"/g, '')
+    .replace(/\s*style="[^"]*"/g, '')
+    .replace(/\s*section-image-id-\d+="[^"]*"/g, '')
+    // 앵커 네비게이션 속성 제거
+    .replace(/\s*anchor-section-id="[^"]*"/g, '')
+    .replace(/\s*move-scroll="[^"]*"/g, '')
+    .replace(/\s*move-scroll-mobile="[^"]*"/g, '')
+    // 인라인 JavaScript 제거
+    .replace(/var\s+\w+\s*=[\s\S]*?addEventListener\([^)]*\)/g, '')
+    .replace(/window\.\w+Config\w*\s*=[\s\S]*?addEventListener\([^)]*\)/g, '')
+    // img/a/video 이외의 HTML 태그 제거
     .replace(/<(?!\/?(?:img|a|video)(?:\s|>|\/|$))[^>]+>/g, '')
+    // HTML entities
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&nbsp;/g, ' ')
+    // 공백 정리
     .replace(/\s+/g, ' ')
     .trim();
 }
