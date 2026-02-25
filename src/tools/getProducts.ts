@@ -10,6 +10,21 @@ const DETAIL_METAFIELD_KEYS = new Set([
   "global.description_tag",
 ]);
 
+/** Strip HTML styling tags from metafield values, keeping only text content */
+function cleanMetafieldHtml(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  return value
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const GetProductsInputSchema = z.object({
   first: z.number().default(10),
   after: z.string().optional(),
@@ -27,7 +42,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response modes (response_mode): 'listing' (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for browsing, counting, filtering. 'full' includes all fields and metafields — use for comprehensive product data. 'essential' returns only core fields (title, handle, price, category, options) + detail metafields — strips description, tags, dates, vendor, images for ~53% token savings vs full — best for collection product crawling when you only need product specs (제품명, 가격, 용량, 성분, 설명, 사용법, 카테고리). Filtering: minimum_review_count=N returns only products with ≥N Loox reviews. query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2) adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews always excluded — use get-product-reviews instead.`,
+  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response modes (response_mode): 'listing' (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for browsing, counting, filtering. 'full' includes all fields and metafields — use for comprehensive product data. 'essential' returns only core fields (title, handle, price, category, options) + HTML-cleaned detail metafields — strips description, tags, dates, vendor, images and removes HTML styling from metafield values for ~42% token savings vs full — best for collection product crawling when you only need product specs (제품명, 가격, 용량, 성분, 설명, 사용법, 카테고리). Filtering: minimum_review_count=N returns only products with ≥N Loox reviews. query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2) adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews always excluded — use get-product-reviews instead.`,
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -194,7 +209,8 @@ const getProducts = {
             })
             .map((e: any) => {
               const m = e.node;
-              return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
+              const val = m.jsonValue ?? m.value;
+              return [`${m.namespace}.${m.key}`, input.response_mode === 'essential' ? cleanMetafieldHtml(val) : val];
             })
         );
 
@@ -216,7 +232,7 @@ const getProducts = {
               }
             } : {}),
             category: node.category,
-            options: node.options || [],
+            options: (node.options || []).map((o: any) => ({ name: o.name, values: o.values })),
             metafields
           };
         }

@@ -143,7 +143,7 @@ server.tool(
     reverse: z.boolean().default(false),
     country: z.string().optional().describe("ISO 3166-1 alpha-2 country code (e.g. 'KR', 'US', 'JP') for contextual pricing in that market's currency"),
     minimum_review_count: z.number().optional().describe("Filter products with at least N Loox reviews. E.g. 50 returns only products with ≥50 reviews. Products without loox.num_reviews metafield are excluded."),
-    response_mode: z.enum(["listing", "full", "essential"]).default("listing").describe("'listing' (default): excludes heavy metafields for light responses. 'full': all fields + all metafields for comprehensive crawling. 'essential': only core fields (title, handle, price, category, options) + detail metafields — best for collection product crawling (~53% savings vs full).")
+    response_mode: z.enum(["listing", "full", "essential"]).default("listing").describe("'listing' (default): excludes heavy metafields for light responses. 'full': all fields + all metafields for comprehensive crawling. 'essential': only core fields (title, handle, price, category, options) + HTML-cleaned detail metafields — best for collection product crawling (~42% savings vs full).")
   },
   async (args) => {
     const result = await getProducts.execute(args);
