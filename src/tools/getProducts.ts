@@ -42,7 +42,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response modes (response_mode): 'listing' (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for browsing, counting, filtering. 'full' includes all fields and metafields — use for comprehensive product data. 'essential' returns only core fields (title, handle, price, category, options) + HTML-cleaned detail metafields — strips description, tags, dates, vendor, images and removes HTML styling from metafield values for ~42% token savings vs full — best for collection product crawling when you only need product specs (제품명, 가격, 용량, 성분, 설명, 사용법, 카테고리). Filtering: minimum_review_count=N returns only products with ≥N Loox reviews. query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2) adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews always excluded — use get-product-reviews instead.`,
+  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response modes (response_mode): 'listing' (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for browsing, counting, filtering. 'full' includes all fields and metafields — use for comprehensive product data. 'essential' returns product spec fields (title, handle, description, productType, vendor, tags, price, compareAtPrice, category, options, image, url) + HTML-cleaned detail metafields — only strips status, dates, cursor, isGiftCard, totalVariants, hasOutOfStockVariants and cleans HTML styling from metafield values — best for product detail crawling. Filtering: minimum_review_count=N returns only products with ≥N Loox reviews. query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2) adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews always excluded — use get-product-reviews instead.`,
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -214,15 +214,24 @@ const getProducts = {
             })
         );
 
-        // Essential mode: only core fields for collection crawling
+        // Essential mode: product spec fields + HTML-cleaned detail metafields
+        // Excluded: status (always ACTIVE), dates, cursor, isGiftCard, totalVariants, hasOutOfStockVariants
         if (input.response_mode === 'essential') {
           return {
             id: node.id,
             title: node.title,
             handle: node.handle,
+            description: node.description,
+            productType: node.productType,
+            vendor: node.vendor,
+            tags: node.tags,
             priceRange: {
               minPrice: node.priceRangeV2?.minVariantPrice,
               maxPrice: node.priceRangeV2?.maxVariantPrice
+            },
+            compareAtPriceRange: {
+              minPrice: node.compareAtPriceRange?.minVariantCompareAtPrice,
+              maxPrice: node.compareAtPriceRange?.maxVariantCompareAtPrice
             },
             ...(node.contextualPricing ? {
               contextualPricing: {
@@ -232,7 +241,9 @@ const getProducts = {
               }
             } : {}),
             category: node.category,
+            featuredImage: node.featuredMedia?.image,
             options: (node.options || []).map((o: any) => ({ name: o.name, values: o.values })),
+            onlineStoreUrl: node.onlineStoreUrl,
             metafields
           };
         }
