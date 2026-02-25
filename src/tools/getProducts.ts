@@ -18,7 +18,7 @@ const GetProductsInputSchema = z.object({
   reverse: z.boolean().default(false),
   country: z.string().optional(),
   minimum_review_count: z.number().optional(),
-  contain_product_detail: z.boolean().default(false)
+  response_mode: z.enum(["listing", "full", "essential"]).default("listing")
 });
 
 type GetProductsInput = z.infer<typeof GetProductsInputSchema>;
@@ -27,7 +27,7 @@ let shopifyClient: GraphQLClient;
 
 const getProducts = {
   name: "get-products",
-  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response mode: contain_product_detail=false (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for listing, counting, filtering. Set contain_product_detail=true only when crawling full product content. Filtering: minimum_review_count=N returns only products with ≥N Loox reviews (loox.num_reviews metafield). query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2, e.g. 'KR') adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews excluded — use get-product-reviews instead.`,
+  description: `Get products list (ACTIVE only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again with after=endCursor. Typically 2 calls (first=250 × 2) covers all products. Stop when hasNextPage=false. Response modes (response_mode): 'listing' (default) excludes heavy metafields (ingredients, details, faq, how-to-use, description_tag) for ~54% token savings — use for browsing, counting, filtering. 'full' includes all fields and metafields — use for comprehensive product data. 'essential' returns only core fields (title, handle, price, category, options) + detail metafields — strips description, tags, dates, vendor, images for ~53% token savings vs full — best for collection product crawling when you only need product specs (제품명, 가격, 용량, 성분, 설명, 사용법, 카테고리). Filtering: minimum_review_count=N returns only products with ≥N Loox reviews. query supports Shopify search syntax (e.g. 'title:*serum*', 'tag:sale', 'vendor:Nike'). country (ISO 3166-1 alpha-2) adds market-specific pricing. Metafields returned as flat object (namespace.key: value). loox.reviews always excluded — use get-product-reviews instead.`,
   schema: GetProductsInputSchema,
 
   initialize(client: GraphQLClient) {
@@ -171,6 +171,57 @@ const getProducts = {
 
       const products = data.products.edges.map((edge: any) => {
         const node = edge.node;
+
+        // Filter metafields based on response_mode
+        const metafields = Object.fromEntries(
+          (node.metafields?.edges || [])
+            .filter((e: any) => {
+              // Always exclude loox.reviews (use get-product-reviews instead)
+              if (e.node.namespace === 'loox' && e.node.key === 'reviews') return false;
+              // Always keep loox.num_reviews when minimum_review_count filter is active
+              if (input.minimum_review_count != null && e.node.namespace === 'loox' && e.node.key === 'num_reviews') return true;
+              const flatKey = `${e.node.namespace}.${e.node.key}`;
+              if (input.response_mode === 'listing') {
+                // Exclude heavy detail metafields
+                return !DETAIL_METAFIELD_KEYS.has(flatKey);
+              }
+              if (input.response_mode === 'essential') {
+                // Only include detail metafields
+                return DETAIL_METAFIELD_KEYS.has(flatKey);
+              }
+              // 'full' — include everything
+              return true;
+            })
+            .map((e: any) => {
+              const m = e.node;
+              return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
+            })
+        );
+
+        // Essential mode: only core fields for collection crawling
+        if (input.response_mode === 'essential') {
+          return {
+            id: node.id,
+            title: node.title,
+            handle: node.handle,
+            priceRange: {
+              minPrice: node.priceRangeV2?.minVariantPrice,
+              maxPrice: node.priceRangeV2?.maxVariantPrice
+            },
+            ...(node.contextualPricing ? {
+              contextualPricing: {
+                priceRange: node.contextualPricing.priceRange,
+                maxVariantPricing: node.contextualPricing.maxVariantPricing,
+                minVariantPricing: node.contextualPricing.minVariantPricing
+              }
+            } : {}),
+            category: node.category,
+            options: node.options || [],
+            metafields
+          };
+        }
+
+        // listing and full modes: return all product fields
         return {
           cursor: edge.cursor,
           id: node.id,
@@ -206,21 +257,7 @@ const getProducts = {
           hasOutOfStockVariants: node.hasOutOfStockVariants,
           isGiftCard: node.isGiftCard,
           totalVariants: node.variantsCount?.count,
-          metafields: Object.fromEntries(
-            (node.metafields?.edges || [])
-              .filter((e: any) => {
-                if (e.node.namespace === 'loox' && e.node.key === 'reviews') return false;
-                if (!input.contain_product_detail) {
-                  const flatKey = `${e.node.namespace}.${e.node.key}`;
-                  if (DETAIL_METAFIELD_KEYS.has(flatKey)) return false;
-                }
-                return true;
-              })
-              .map((e: any) => {
-                const m = e.node;
-                return [`${m.namespace}.${m.key}`, m.jsonValue ?? m.value];
-              })
-          )
+          metafields
         };
       });
 
