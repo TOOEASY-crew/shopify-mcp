@@ -351,11 +351,11 @@ server.tool(
 server.tool(
   "get-articles",
   {
-    first: z.number().default(10),
-    after: z.string().optional(),
-    query: z.string().optional(),
-    sortKey: z.enum(["ID", "TITLE", "BLOG_TITLE", "AUTHOR", "UPDATED_AT", "PUBLISHED_AT", "RELEVANCE"]).default("ID"),
-    reverse: z.boolean().default(false)
+    first: z.number().default(10).describe("Number of articles to fetch (max 250). Use 250 for bulk retrieval."),
+    after: z.string().optional().describe("Pagination cursor from pageInfo.endCursor of previous response."),
+    query: z.string().optional().describe("Shopify search filter. E.g. 'blog_title:Glam', 'tag:skincare', 'author:Marketing'. Multiple filters space-separated."),
+    sortKey: z.enum(["ID", "TITLE", "BLOG_TITLE", "AUTHOR", "UPDATED_AT", "PUBLISHED_AT", "RELEVANCE"]).default("ID").describe("Sort field. Use PUBLISHED_AT with reverse=true for latest articles first."),
+    reverse: z.boolean().default(false).describe("Set true for descending order (newest first when sortKey=PUBLISHED_AT).")
   },
   async (args) => {
     const result = await getArticles.execute(args);

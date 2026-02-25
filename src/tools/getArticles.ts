@@ -44,7 +44,7 @@ let shopifyClient: GraphQLClient;
 
 const getArticles = {
   name: "get-articles",
-  description: "Get articles with filtering, sorting, and pagination. Use query for filtering (e.g. 'tag:announcement', 'author:Marketing', 'blog_id:gid://shopify/Blog/123', 'published_status:published').",
+  description: `Get blog articles (published only). Pagination: use first=250 (max) and pass pageInfo.endCursor as 'after' for next page. Check pageInfo.hasNextPage — if true, call again. For latest articles: sortKey="PUBLISHED_AT", reverse=true. Use query for filtering (e.g. 'blog_title:Glam', 'tag:skincare', 'author:Marketing'). Each article includes body (full text ~1.5K-2.5K tokens), summary, image, tags, and metafields. Body is pre-cleaned: HTML junk (srcset, class, style, inline JS) removed, only text + img src/alt + link href preserved.`,
   schema,
 
   initialize(client: GraphQLClient) { shopifyClient = client; },
